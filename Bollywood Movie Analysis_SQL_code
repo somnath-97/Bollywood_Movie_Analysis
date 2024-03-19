@@ -1,0 +1,100 @@
+USE project;
+
+-- BASIC LEVEL:
+
+-- 1.	Retrieve all columns from the 'bollywood_movie_detail' table for all movies.
+SELECT title FROM project.bollywood_movie_detail;
+
+-- 2.	List unique genres available in the 'bollywood_movie_detail' dataset.
+SELECT DISTINCT genre FROM bollywood_movie_detail;
+
+-- 3.	Find the total count of movies released in each year.
+SELECT ReleaseYear, COUNT(*) AS MovieCount FROM bollywood_movie_detail GROUP BY ReleaseYear ORDER BY ReleaseYear;
+
+-- 4.	Fetch the top 5 directors with the highest movie count from 'bollywood_movie_detail'.
+SELECT directors as 'Director_Name', COUNT(title) AS 'Movie_Count' FROM project.bollywood_movie_detail GROUP BY directors;
+
+-- 5.	Retrieve the movie titles released in the year 2010.
+SELECT title, releaseyear FROM bollywood_movie_detail WHERE releaseyear = 2010;
+
+-- INTERMEDIATE LEVEL:
+
+-- 6.	Calculate the average rating of movies for each genre.
+SELECT BM.genre, ROUND(AVG(BAR.normalizedRating),2) AS AverageRating
+FROM bollywood_movie_detail AS BM
+LEFT JOIN bollywoodactorranking AS BAR ON BM.Lead_Actors LIKE CONCAT('%', BAR.actorName, '%')
+GROUP BY BM.genre
+ORDER BY AverageRating DESC;
+
+-- 7.	List the directors who have directed sequels and the count of sequels they directed.
+SELECT directors, COUNT(*) AS 'Sequal_Count' FROM project.bollywood_movie_detail WHERE sequel IN (1,2) GROUP BY directors;
+
+-- 8.	Identify the actors who have worked in more than 20 movies.
+SELECT Lead_Actors, COUNT(*) AS 'Movie_Count' FROM project.bollywood_movie_detail GROUP BY Lead_Actors ASC;
+
+-- 9.	Find the director with the highest normalized rating.
+SELECT directorName AS 'Director_Name', ROUND(MAX(normalizedMovieRank)) AS 'Highest_Normalized_Rating'
+FROM bollywooddirectorranking ORDER BY Highest_Normalized_Rating DESC LIMIT 1;
+
+-- 10.	List the top 10 movies with the highest Google hits.
+SELECT BMD.title, BMD.Lead_Actors, BMD.directors, SUM(BAR.googleHits + BDR.googleHits) AS Total_Google_Hits
+FROM bollywood_movie_detail_1 AS BMD
+JOIN bollywoodactorranking AS BAR ON BMD.Lead_Actors = BAR.actorName
+JOIN bollywooddirectorranking AS BDR ON BMD.directors = BDR.directorName
+GROUP BY BMD.title, BMD.Lead_Actors, BMD.directors
+ORDER BY Total_Google_Hits DESC LIMIT 10;
+
+-- ADVANCED LEVEL:
+
+-- 11.	Calculate the average normalized rating for movies released each year.
+SELECT BMD.releaseYear, ROUND(AVG(BDR.normalizedRating),2) AS Average_Director_Rating, ROUND(AVG(BAR.normalizedRating),2) AS AverageActorRating
+FROM bollywood_movie_detail_1 AS BMD
+LEFT JOIN bollywooddirectorranking AS BDR ON BMD.directors = BDR.directorName
+LEFT JOIN bollywoodactorranking AS BAR ON BMD.Lead_Actors LIKE CONCAT('%', BAR.actorName, '%')
+GROUP BY BMD.releaseYear ORDER BY BMD.releaseYear;
+
+-- 12.	Find the actors and directors who have collaborated in more than three movies together.
+SELECT BMD.Lead_Actors AS Actor, BMD.directors AS Director, COUNT(*) AS CollaborationCount
+FROM bollywood_movie_detail AS BMD
+GROUP BY BMD.Lead_Actors, BMD.directors
+HAVING CollaborationCount > 3;
+
+-- 13.	Identify the actor-director pairs with the highest combined movie count.
+SELECT BMD.Lead_Actors AS Actor, BMD.directors AS Director, COUNT(*) AS MovieCount
+FROM Bollywood_Movie_Detail_1 AS BMD
+GROUP BY BMD.Lead_Actors, BMD.directors
+ORDER BY MovieCount DESC LIMIT 1;
+
+-- 14.	Calculate the total number of movies each actor has been part of, considering both Bollywood-Actor-Ranking and Bollywood-Movie-Detail tables.
+SELECT ActorName, COUNT(*) AS TotalMovies
+FROM (
+    SELECT Lead_Actors AS ActorName FROM bollywood_movie_detail
+    UNION ALL
+    SELECT Other_Actor_1 FROM bollywood_movie_detail
+    UNION ALL
+    SELECT Other_Actor_2 FROM bollywood_movie_detail
+    UNION ALL
+    SELECT Other_Actor_3 FROM bollywood_movie_detail
+) AS AllActors
+WHERE ActorName IS NOT NULL AND ActorName != ''
+GROUP BY ActorName
+ORDER BY TotalMovies DESC;
+
+-- 15.	Create a ranking of movies based on a combined score using normalizedMovieRank, normalizedGoogleRank, and normalizedRating.
+SELECT
+    BMD.title AS MovieTitle,
+    BDR.normalizedMovieRank AS DirectorMovieRank,
+    BDR.normalizedGoogleRank AS DirectorGoogleRank,
+    BDR.normalizedRating AS DirectorRating,
+    BAR.normalizedMovieRank AS ActorMovieRank,
+    BAR.normalizedGoogleRank AS ActorGoogleRank,
+    BAR.normalizedRating AS ActorRating,
+    ROUND((BDR.normalizedMovieRank + BDR.normalizedGoogleRank + BDR.normalizedRating +
+     BAR.normalizedMovieRank + BAR.normalizedGoogleRank + BAR.normalizedRating),2) AS CombinedScore
+FROM
+    Bollywood_Movie_Detail AS BMD
+LEFT JOIN
+    bollywooddirectorranking AS BDR ON BMD.directors = BDR.directorName
+LEFT JOIN
+    bollywoodactorranking AS BAR ON BMD.Lead_Actors LIKE CONCAT('%', BAR.actorName, '%')
+LIMIT 0, 1000;
